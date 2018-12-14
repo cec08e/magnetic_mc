@@ -177,7 +177,7 @@ void echo_params(FILE *fp){
 
 void build_lattice(){
   /* Allocate memory for the lattice structure */
-  /* Set the parameter interaction strengths
+  /* Allocate mem and set values for the parameter interaction strengths
 
   To do: define path for custom periodic functions
   defining interaction strengths, initialize D vector
@@ -186,45 +186,66 @@ void build_lattice(){
 
   int i, j, k;
   lattice_t lattice = (spin_t ***)malloc(NUM_L*sizeof(spin_t **));
+  J_INTER = (float ***)malloc(NUM_L*sizeof(float **));
+  J_INTRA = (float ***)malloc(NUM_L*sizeof(float **));
+  D_INTER = (float ***)malloc(NUM_L*sizeof(float **));
+  D_INTRA = (float ***)malloc(NUM_L*sizeof(float **));
+  K = (float ***)malloc(NUM_L*sizeof(float **));
+  B = (float ***)malloc(NUM_L*sizeof(float **));
   for(i = 0; i < NUM_L; i++){
     lattice[i] = (spin_t **)malloc(NUM_R*sizeof(spin_t *));
-    for(j = 0; j < NUM_R; j++)
+    J_INTER[i] = (float **)malloc(NUM_R*sizeof(float *));
+    J_INTRA[i] = (float **)malloc(NUM_R*sizeof(float *));
+    D_INTER[i] = (float **)malloc(NUM_R*sizeof(float *));
+    D_INTRA[i] = (float **)malloc(NUM_R*sizeof(float *));
+    K[i] = (float **)malloc(NUM_R*sizeof(float *));
+    B[i] = (float **)malloc(NUM_R*sizeof(float *));
+
+    for(j = 0; j < NUM_R; j++){
       lattice[i][j] = (spin_t *)malloc(NUM_C*sizeof(spin_t));
+      J_INTER[i][j] = (float *)malloc(NUM_C*sizeof(float));
+      J_INTRA[i][j] = (float *)malloc(NUM_C*sizeof(float));
+      D_INTER[i][j] = (float *)malloc(NUM_C*sizeof(float));
+      D_INTRA[i][j] = (float *)malloc(NUM_C*sizeof(float));
+      K[i][j] = (float *)malloc(NUM_C*sizeof(float));
+      B[i][j] = (float *)malloc(NUM_C*sizeof(float));
+
+    }
   }
 
 
   if(!J_INTRA_P){
     for(i = 0; i < NUM_L; i++)
-      for(j = 0; j < NUM_L; j++)
-        for(k = 0; k < NUM_L; k++)
+      for(j = 0; j < NUM_R; j++)
+        for(k = 0; k < NUM_C; k++)
           J_INTRA[i][j][k] = J_INTRA_CONST[i];
   }
 
   if(!J_INTER_P){
     for(i = 0; i < NUM_L; i++)
-      for(j = 0; j < NUM_L; j++)
-        for(k = 0; k < NUM_L; k++)
+      for(j = 0; j < NUM_R; j++)
+        for(k = 0; k < NUM_C; k++)
           J_INTER[i][j][k] = J_INTER_CONST[i];
   }
 
   if(!D_INTRA_P){
     for(i = 0; i < NUM_L; i++)
-      for(j = 0; j < NUM_L; j++)
-        for(k = 0; k < NUM_L; k++)
+      for(j = 0; j < NUM_R; j++)
+        for(k = 0; k < NUM_C; k++)
           D_INTRA[i][j][k] = D_INTRA_CONST[i];
   }
 
   if(!D_INTER_P){
     for(i = 0; i < NUM_L; i++)
-      for(j = 0; j < NUM_L; j++)
-        for(k = 0; k < NUM_L; k++)
+      for(j = 0; j < NUM_R; j++)
+        for(k = 0; k < NUM_C; k++)
           D_INTER[i][j][k] = D_INTER_CONST[i];
   }
 
   if(!K_P){
     for(i = 0; i < NUM_L; i++)
-      for(j = 0; j < NUM_L; j++)
-        for(k = 0; k < NUM_L; k++)
+      for(j = 0; j < NUM_R; j++)
+        for(k = 0; k < NUM_C; k++)
           K[i][j][k] = K_CONST[i];
   }
 
