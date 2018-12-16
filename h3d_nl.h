@@ -18,7 +18,7 @@ short OVER_FLAG = 0;       /* Number of overrelaxation sweeps per MC sweep */
 int ANNEAL_TIME = 2000;    /* Number of annealing sweeps to perform at each intermediate temperature */
 int EQ_TIME = 100000;      /* Number of equilibration sweeps */
 int COR_TIME = 10;         /* Number of sweeps between measurements of equilibrated system */
-
+int DEBUG = 0;             /* Toggle debug statements */
 
 /* Uniform interaction values */
 float B_CONST;
@@ -48,7 +48,7 @@ float *** J_INTRA;     /* Intralayer exchange interaction strength */
 float *** D_INTER;     /* Interlayer DM interaction strength */
 float *** D_INTRA;     /* Intralayer DM interaction strength */
 float *** K;           /* Anisotropy strength */
-float *** B;           /* External field strength */
+float B;           /* External field strength */
 
 /* Not likely to be modified */
 float RADIUS = .6;         /* Radius of tangent disc in perturbing function */
@@ -60,11 +60,40 @@ typedef struct {
 } spin_t;             /* Spin type structure - x, y, and z components of spin */
 
 typedef spin_t *** lattice_t;    /* Lattice type */
+
+lattice_t lattice;
+
 gsl_rng * rng;
+gsl_vector* spin_vector;
+gsl_vector* point_vector;
+gsl_vector* temp_vector;
+gsl_matrix* rot_matrix;
+
+gsl_vector* delta_vector;
+gsl_vector* neighbor_vector;
+gsl_vector* cross_temp;
+gsl_vector* inter_vector;
+gsl_vector* neighbors[4];
+gsl_vector * D_vec[4];
+
+
+
+
+
+
 
 void parse_config_file();
 void echo_params();
 void build_lattice();
-void gen_random_spin(spin_t* spin);
+void gen_random_spin(spin_t*);
+void simulate(int, double );
+int sweep(double );
+void perturb_spin(spin_t* , spin_t* );
+double calc_delta_E(spin_t*, spin_t*, int, int, int);
+void cool_lattice(double );
+double calc_magnetization(int);
+int M_v_B(double** );
+void cross_product(const gsl_vector *u, const gsl_vector *v, gsl_vector *product);
+void cleanup();
 
 #endif
