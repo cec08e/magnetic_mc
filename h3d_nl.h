@@ -76,7 +76,7 @@ gsl_vector* inter_vector;
 gsl_vector* neighbors[4];
 gsl_vector * D_vec[4];
 
-
+double energy, magnetization;
 
 
 
@@ -92,7 +92,12 @@ void perturb_spin(spin_t* , spin_t* );
 double calc_delta_E(spin_t*, spin_t*, int, int, int);
 void cool_lattice(double );
 double calc_magnetization(int);
+double calc_energy();
+double calc_TC(int);
+double calc_solid_angle(spin_t, spin_t , spin_t );
 int M_v_B(double** );
+int C_v_T(double** );
+int X_v_T(double** );
 void cross_product(const gsl_vector *u, const gsl_vector *v, gsl_vector *product);
 void cleanup();
 

@@ -34,7 +34,9 @@ int main(){
   parse_config_file();
   echo_params(stdout);
   build_lattice();
-  M_v_B(results);
+  //M_v_B(results);
+  //X_v_T(results);
+  C_v_T(results);
 
   cleanup();
 }
@@ -322,6 +324,16 @@ void build_lattice(){
   gsl_vector_set(D_vec[3], 1, 1);
   gsl_vector_set(D_vec[3], 2, 0);
 
+  /* Calculate initial energy and magnetization */
+  magnetization = calc_magnetization(-1);
+  energy = calc_energy();
+
+  if(DEBUG){
+    printf("Initial magnetization: %f \n", magnetization);
+    printf("Initial energy: %f \n", energy);
+
+  }
+
 }
 
 void gen_random_spin(spin_t* spin){
@@ -392,9 +404,13 @@ int sweep(double T){
       continue;
     }
     else if( !( (delta_E > 0) && (random_num >= gsl_sf_exp(-(1.0/T)*delta_E)) ) ){
+      magnetization += temp_spin.z - lattice[layer][row][col].z;    /* Update magnetization */
+      energy += delta_E;
       lattice[layer][row][col].x = temp_spin.x;
       lattice[layer][row][col].y = temp_spin.y;
       lattice[layer][row][col].z = temp_spin.z;
+
+
       num_accept += 1;
     }
   }
@@ -571,6 +587,19 @@ void cool_lattice(double T){
 
 }
 
+double calc_energy(){
+  int i,j,k;
+  spin_t zero_spin;
+  zero_spin.x = 0;
+  zero_spin.y = 0;
+  zero_spin.z = 0;
+  for(i=0; i < NUM_L; i++)
+      for(j=0; j < NUM_R; j++)
+          for(k = 0; k < NUM_C; k++)
+              energy += calc_delta_E(&lattice[i][j][k], &zero_spin, i, j, k);
+
+  return energy/2.0;
+}
 
 
 double calc_magnetization(int layer){
@@ -583,7 +612,8 @@ double calc_magnetization(int layer){
             for(j=0; j < NUM_R; j++)
                 for(k = 0; k < NUM_C; k++)
                     mag += lattice[i][j][k].z;
-        mag_spin = mag/(NUM_R*NUM_C*NUM_L);
+        //mag_spin = mag/(NUM_R*NUM_C*NUM_L);
+        mag_spin = mag;
       }
       else{
         for(j=0; j < NUM_R; j++)
@@ -594,6 +624,73 @@ double calc_magnetization(int layer){
       return mag_spin;
 }
 
+double calc_TC(int layer){
+  double solid_angle_sum = 0;
+  int i, j, k;
+  i = layer;
+  for(j =0; NUM_R; j++)
+    for(k=0; k < NUM_C; k++){
+      solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%NUM_C) + NUM_C) % NUM_C], lattice[i][(j+1)%NUM_R][k]);
+      solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j)%NUM_R][(k+1)%NUM_C], lattice[i][(((j-1)%NUM_R) + NUM_R) % NUM_R][(k)%NUM_C]);
+    }
+  return solid_angle_sum/(4*M_PI);
+}
+
+double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3){
+
+  gsl_complex c_temp;
+  gsl_vector * n1_vec = gsl_vector_alloc(3);
+  gsl_vector * n2_vec = gsl_vector_alloc(3);
+  gsl_vector * n3_vec = gsl_vector_alloc(3);
+  gsl_vector * n2_cross_n3 = gsl_vector_alloc(3);
+
+  double n1_dot_n2;
+  double n2_dot_n3;
+  double n3_dot_n1;
+  double n1_dot_n2_cross_n3;
+
+  double rho;
+  double Omega;
+
+
+  gsl_vector_set(n1_vec, 0, n1.x);
+  gsl_vector_set(n1_vec, 1, n1.y);
+  gsl_vector_set(n1_vec, 2, n1.z);
+
+  gsl_vector_set(n2_vec, 0, n2.x);
+  gsl_vector_set(n2_vec, 1, n2.y);
+  gsl_vector_set(n2_vec, 2, n2.z);
+
+  gsl_vector_set(n3_vec, 0, n3.x);
+  gsl_vector_set(n3_vec, 1, n3.y);
+  gsl_vector_set(n3_vec, 2, n3.z);
+
+  cross_product(n2_vec, n3_vec, n2_cross_n3);
+
+  gsl_blas_ddot(n1_vec, n2_vec, &n1_dot_n2);
+  gsl_blas_ddot(n2_vec, n3_vec, &n2_dot_n3);
+  gsl_blas_ddot(n3_vec, n1_vec, &n3_dot_n1);
+  gsl_blas_ddot(n1_vec, n2_cross_n3, &n1_dot_n2_cross_n3);
+
+  //printf("n1_dot_n2: %f\n", n1_dot_n2);
+  //printf("n2_dot_n3: %f\n", n2_dot_n3);
+  //printf("n3_dot_n1: %f\n", n3_dot_n1);
+
+  rho = sqrt(2*(1+n1_dot_n2)*(1+n2_dot_n3)*(1+n3_dot_n1));
+  //printf("Rho is %f \n", rho);
+  GSL_SET_COMPLEX(&c_temp, (1.0/rho)*(1 + n1_dot_n2 + n2_dot_n3 + n3_dot_n1), (1.0/rho)*n1_dot_n2_cross_n3);
+  Omega = 2*GSL_IMAG(gsl_complex_log(c_temp));
+
+  gsl_vector_free(n1_vec);
+  gsl_vector_free(n2_vec);
+  gsl_vector_free(n3_vec);
+  gsl_vector_free(n2_cross_n3);
+
+  return Omega;
+
+}
+
+
 int C_v_T(double** results){
   /* Calc Heat Capacity from Init temp to final temp, in delta_t intervals
   where C = (<E^2> - <E>^2)/T^{2}
@@ -601,18 +698,70 @@ int C_v_T(double** results){
   At each temperature, the energy is measured over 100,000 cor time samples.
   */
   float curr_temp = INIT_T;
+  int j = 0, i;
+  int num_samples = 10000;
+  double e_avg = 0, e_sq_avg = 0;
+  while(curr_temp > FINAL_T){
+    //if(DEBUG)
+    //  printf("Calculating magnetic susceptibility at T = %f\n", curr_temp);
+    fflush(stdout);
+    simulate(EQ_TIME, curr_temp);
+    for(i = 0; i < num_samples; i++){
+      simulate(COR_TIME, curr_temp);
+      e_avg += energy;
+      e_sq_avg += gsl_pow_2(energy);
+    }
+    //printf("Energy per site at temp T = %f: %f\n", curr_temp, energy/(NUM_L*NUM_R*NUM_C));
+    results[j][0] = curr_temp;
+    results[j][1] = ((e_sq_avg/num_samples) - (gsl_pow_2(e_avg/num_samples)))/(gsl_pow_2(curr_temp)*NUM_L*NUM_R*NUM_C);
 
+    printf("%f,%f\n", results[j][0], results[j][1]);
 
+    curr_temp -= DELTA_T;
+    j++;
+
+    e_avg = 0;
+    e_sq_avg = 0;
+  }
+  return j;
 }
 
 int X_v_T(double** results){
   /* Calc magnetic susceptibility from Init temp to final temp, in delta_t intervals
   where C = (<M^2> - <M>^2)/T
 
-  At each temperature, X is measured over 100,000 cor time samples.
+  At each temperature, X is measured over 10,000 cor time samples.
   */
 
+  float curr_temp = INIT_T;
+  int j = 0, i;
+  int num_samples = 10000;
+  double m_avg = 0, m_sq_avg = 0;
+  while(curr_temp > FINAL_T){
+    //if(DEBUG)
+    //  printf("Calculating magnetic susceptibility at T = %f\n", curr_temp);
+    fflush(stdout);
+    simulate(EQ_TIME, curr_temp);
+    for(i = 0; i < num_samples; i++){
+      simulate(COR_TIME, curr_temp);
+      m_avg += fabs(magnetization);
+      m_sq_avg += gsl_pow_2(magnetization);
+    }
 
+    //printf("|M| per site at temp T = %f: %f\n", curr_temp, fabs(magnetization)/(NUM_L*NUM_R*NUM_C));
+
+    results[j][0] = curr_temp;
+    results[j][1] = ((m_sq_avg/num_samples) - (gsl_pow_2(m_avg/num_samples)))/(curr_temp*NUM_L*NUM_R*NUM_C);
+
+    printf("%f,%f\n", results[j][0], results[j][1]);
+
+    curr_temp -= DELTA_T;
+    j++;
+
+    m_avg = 0;
+    m_sq_avg = 0;
+  }
+  return j;
 }
 
 /* EXPERIMENTS */
