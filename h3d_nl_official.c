@@ -9,6 +9,7 @@
 #include <gsl/gsl_complex.h>
 #include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_sf_pow_int.h>
+#include <gsl/gsl_randist.h>
 #include <time.h>
 #include "h3d_nl.h"
 
@@ -26,7 +27,7 @@ ALT: gcc -fPIC -shared -o h3d_nl.so -lgsl -lgslcblas h3d_nl.c
 
 
 int main(){
-  int i = 0;
+  int i = 0, j=0;
   double ** results = (double **)malloc(10000*sizeof(double *));
   for(i = 0; i < 10000; i++)
     results[i] = (double *)malloc(8*sizeof(double));
@@ -34,10 +35,19 @@ int main(){
   parse_config_file();
   echo_params(stdout);
   build_lattice();
+  //insert_impurity(.15, 1, 0, 0, 0, 0);
   M_v_B(results);
   //X_v_T(results);
   //C_v_T(results);
-
+  //test_lattice_TC();
+  /*
+  for(i = 0; i < NUM_R; i++){
+    for(j = 0; j < NUM_C; j++){
+      printf("%f\t", K[0][i][j]);
+    }
+    printf("\n");
+  }
+  */
   cleanup();
 }
 
@@ -54,24 +64,45 @@ void parse_config_file(){
   char config_line[80];
   char param[80];
   char val_list[80], *str_val;
-  int val, i;
-  float val_d;
+  int i;
+  float val;
 
   fp = fopen(CONFIG_FILE, "r");
-  while(fgets(config_line, 80,fp)){
+  while(fgets(config_line, 80, fp)){
 
-    if(sscanf(config_line, "%s = %f", param, &val_d) == 2){
-      /* Case includes: B_CONST, J_INTRA_CONST, J_INTER_CONST, D_INTRA_CONST, D_INTER_CONST, K_CONST*/
-      if(!strcmp(param, "INIT_T")) INIT_T = val_d;
-      else if(!strcmp(param, "FINAL_T")) FINAL_T = val_d;
-      else if(!strcmp(param, "DELTA_T")) DELTA_T = val_d;
-      else if(!strcmp(param, "B_CONST")){ printf("val_d = %f\n", val_d); B_CONST = val_d;}
-      else if(!strcmp(param, "DELTA_B")) DELTA_B = val_d;
-      else if(!strcmp(param, "RADIUS")) RADIUS = val_d;
-      else{
-        printf("param = %s\n", param);
-      }
+    if(sscanf(config_line, "%s = %f\n", param, &val) == 2){
+      /* Case includes: SIM_NUM, NUM_L, NUM_R, NUM_C, OVER_FLAG, ANNEAL_TIME,
+      EQ_TIME, COR_TIME, J_INTRA_P, J_INTER_P, D_INTRA_P, D_INTER_P, K_P*/
+      if(!strcmp(param, "SIM_NUM")) SIM_NUM = val;
+      else if(!strcmp(param, "NUM_L")){
+         NUM_L = (int)val;
+         /* Number of layers now known. Allocate space for constant
+         interaction strength parameters */
+         J_INTRA_CONST = malloc(NUM_L*sizeof(float));
+         J_INTER_CONST = malloc(NUM_L*sizeof(float));
+         D_INTRA_CONST = malloc(NUM_L*sizeof(float));
+         D_INTER_CONST = malloc(NUM_L*sizeof(float));
+         K_CONST = malloc(NUM_L*sizeof(float));
 
+       }
+      else if(!strcmp(param, "NUM_R")) NUM_R = (int)val;
+      else if(!strcmp(param, "NUM_C")) NUM_C = (int)val;
+      else if(!strcmp(param, "OVER_FLAG")) OVER_FLAG = (int)val;
+      else if(!strcmp(param, "ANNEAL_TIME")) ANNEAL_TIME = (int)val;
+      else if(!strcmp(param, "EQ_TIME")) EQ_TIME = (int)val;
+      else if(!strcmp(param, "COR_TIME")) COR_TIME = (int)val;
+      else if(!strcmp(param, "J_INTRA_P")) J_INTRA_P = (int)val;
+      else if(!strcmp(param, "J_INTER_P")) J_INTER_P = (int)val;
+      else if(!strcmp(param, "D_INTRA_P")) D_INTRA_P = (int)val;
+      else if(!strcmp(param, "D_INTER_P")) J_INTER_P = (int)val;
+      else if(!strcmp(param, "K_P")) K_P = (int)val;
+      else if(!strcmp(param, "DEBUG")) DEBUG = (int)val;
+      else if(!strcmp(param, "INIT_T")) INIT_T = val;
+      else if(!strcmp(param, "FINAL_T")) FINAL_T = val;
+      else if(!strcmp(param, "DELTA_T")) DELTA_T = val;
+      else if(!strcmp(param, "B_CONST")){ B_CONST = val;}
+      else if(!strcmp(param, "DELTA_B")) DELTA_B = val;
+      else if(!strcmp(param, "RADIUS")) RADIUS = val;      /* Case includes: B_CONST, J_INTRA_CONST, J_INTER_CONST, D_INTRA_CONST, D_INTER_CONST, K_CONST*/
     }
     else if(sscanf(config_line, "%s = [%s]\n", param, val_list) == 2){
       i=0;
@@ -106,34 +137,6 @@ void parse_config_file(){
           str_val = strtok (NULL, ",");
         }
       }
-    }
-    else if(sscanf(config_line, "%s = %d\n", param, &val) == 2){
-      /* Case includes: SIM_NUM, NUM_L, NUM_R, NUM_C, OVER_FLAG, ANNEAL_TIME,
-      EQ_TIME, COR_TIME, J_INTRA_P, J_INTER_P, D_INTRA_P, D_INTER_P, K_P*/
-      if(!strcmp(param, "SIM_NUM")) SIM_NUM = val;
-      else if(!strcmp(param, "NUM_L")){
-         NUM_L = val;
-         /* Number of layers now known. Allocate space for constant
-         interaction strength parameters */
-         J_INTRA_CONST = malloc(NUM_L*sizeof(float));
-         J_INTER_CONST = malloc(NUM_L*sizeof(float));
-         D_INTRA_CONST = malloc(NUM_L*sizeof(float));
-         D_INTER_CONST = malloc(NUM_L*sizeof(float));
-         K_CONST = malloc(NUM_L*sizeof(float));
-
-       }
-      else if(!strcmp(param, "NUM_R")) NUM_R = val;
-      else if(!strcmp(param, "NUM_C")) NUM_C = val;
-      else if(!strcmp(param, "OVER_FLAG")) OVER_FLAG = val;
-      else if(!strcmp(param, "ANNEAL_TIME")) ANNEAL_TIME = val;
-      else if(!strcmp(param, "EQ_TIME")) EQ_TIME = val;
-      else if(!strcmp(param, "COR_TIME")) COR_TIME = val;
-      else if(!strcmp(param, "J_INTRA_P")) J_INTRA_P = val;
-      else if(!strcmp(param, "J_INTER_P")) J_INTER_P = val;
-      else if(!strcmp(param, "D_INTRA_P")) D_INTRA_P = val;
-      else if(!strcmp(param, "D_INTER_P")) J_INTER_P = val;
-      else if(!strcmp(param, "K_P")) K_P = val;
-      else if(!strcmp(param, "DEBUG")) DEBUG = val;
     }
     else{
       printf("Invalid line encountered in configuration file: %s\n", config_line);
@@ -342,9 +345,70 @@ void build_lattice(){
 
 }
 
+void insert_impurity(double ratio, int size, int size_gauss, double strength, int strength_gauss, int strength_exp){
+
+  /* Insert anisotropy impurities into the lattice.
+     The ratio parameter indicates the number of impurity sites N = ratio*NUM_L*NUM_R*NUM_C
+     The size parameter indicates the size of the impurity as a size*size cluster.
+     The size_gauss flag indicates whether cluster sizes should be gaussian tail distributed
+     with the max prob at size.
+     The strength parameter indicates the anisotropic strength of impurities.
+     The strength_gauss parameter indicates whether impurity strength should be a normal
+     distribution centered on strength. (i.e. different impurity sites vary in strength)
+     The strength_exp parameter indicates whether impurity strength should drop off
+     exponentially around the cluster. (i.e. different sites within an impurity vary in
+     strength)  - NOT CURRENTLY IMPLEMENTED
+
+     E.g. 15% single-point anisotropic vacancies may be created with
+     insert_impurity(.15, 1, 0, 0, 0, 0)
+  */
+  int i_count = 0, i = 0, j = 0;
+  int l, r, c;
+  int num_impurities = (int)(ratio*NUM_L*NUM_R*NUM_C);
+  double size_sigma = 1.5;
+  double str_sigma = .1;
+  if(DEBUG){
+    printf("Inserting impurities...\n");
+    printf("Impurity ratio: %f\n", ratio);
+    printf("Number of impurity sites: %d\n", num_impurities);
+    printf("Impurity size: %d\n", size);
+    printf("Size gauss: %d\n", size_gauss);
+    printf("Size sigma: %f\n", size_sigma);
+    printf("Impurity strength: %f\n", strength);
+    printf("Strength gauss: %d\n", strength_gauss);
+    printf("Strength sigma: %f\n", str_sigma);
+    printf("Strength exp: %d\n", strength_exp);
+  }
+
+  for(i_count = 0; i_count < num_impurities; i_count++){
+    /* First, choose a random point to anchor the impurity.
+    This point will be the "top left" point of the impurity.*/
+    l =  gsl_rng_uniform_int(rng, NUM_L);
+    r =  gsl_rng_uniform_int(rng, NUM_R);
+    c =  gsl_rng_uniform_int(rng, NUM_C);
+
+    if(size_gauss){
+      /* Choose size based on gaussian tail distribution */
+      size = (int)gsl_ran_gaussian_tail(rng, 1.0, size_sigma);
+      printf("Size chosen: %d\n", size);
+    }
+    if(strength_gauss){
+      /* Choose strength based on gaussian distribution */
+      strength = gsl_ran_gaussian(rng, str_sigma) + strength;
+      printf("Strength chosen: %f\n", strength);
+    }
+
+    for( i = 0; i < size; i++)
+      for( j = 0; j < size; j++)
+        K[l][i + r][j + c] = strength;
+
+  }
+
+}
+
 void gen_random_spin(spin_t* spin){
     double x1, x2, mag_sq;
-    gsl_rng_uniform(rng);
+    gsl_rng_uniform(rng); /* why is this here? */
 
     x1 = gsl_rng_uniform(rng)*2.0 - 1.0;
     x2 = gsl_rng_uniform(rng)*2.0 - 1.0;
@@ -584,8 +648,8 @@ void cool_lattice(double T){
   float curr_temp;
   curr_temp = INIT_T;
   while(curr_temp > T){
-    if(DEBUG)
-      printf("Annealing to T = %f\n", curr_temp);
+    //if(DEBUG)
+    //  printf("Annealing to T = %f\n", curr_temp);
     fflush(stdout);
     simulate(ANNEAL_TIME, curr_temp);
     curr_temp -= DELTA_T;
@@ -639,7 +703,7 @@ double calc_TC(int layer){
       solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%NUM_C) + NUM_C) % NUM_C], lattice[i][(j+1)%NUM_R][k]);
       solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j)%NUM_R][(k+1)%NUM_C], lattice[i][(((j-1)%NUM_R) + NUM_R) % NUM_R][(k)%NUM_C]);
     }
-  //printf("returning sa\n");
+  //printf("TC: %f\n", solid_angle_sum/(4*M_PI));
   //fflush(stdout);
   return solid_angle_sum/(4*M_PI);
 }
@@ -780,8 +844,9 @@ int M_v_B(double** results){
     int sample_counter = 0;
     int i;
     double init_B = B;
-    printf("B = %f, init_B = %f, fabs = %f\n", B, init_B, fabs(init_B));
+    //printf("B = %f, init_B = %f, fabs = %f\n", B, init_B, fabs(init_B));
 
+    printf("MvB data: \n");
     cool_lattice(FINAL_T);
     while(B < fabs(init_B)){
         //printf("equilibrating\n");
@@ -821,10 +886,10 @@ int M_v_B(double** results){
         //printf("taking avs\n");
         //fflush(stdout);
 
-        results[sample_counter][1] = results[sample_counter][1]/num_samples;
+        results[sample_counter][1] = results[sample_counter][1]/(num_samples*NUM_L*NUM_R*NUM_C);
         //for(i=0; i <= NUM_L; i++)
         //  results[sample_counter][i+1] = results[sample_counter][i+1]/num_samples;
-	      results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/num_samples;
+	      results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/(num_samples);
 
         if(DEBUG)
           printf("%f,%f,%f\n", B, results[sample_counter][1], results[sample_counter][NUM_L + 2]);
@@ -851,11 +916,11 @@ int M_v_B(double** results){
 	        results[sample_counter][NUM_L+2] += calc_TC(0);
         }
 
-        results[sample_counter][1] = results[sample_counter][1]/num_samples;
+        results[sample_counter][1] = results[sample_counter][1]/(num_samples*NUM_L*NUM_R*NUM_C);
 
         //for(i=0; i <= NUM_L; i++)
         //  results[sample_counter][i+1] = results[sample_counter][i+1]/num_samples;
-	      results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L + 2]/num_samples;
+	      results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L + 2]/(num_samples);
 
         if(DEBUG)
           printf("%f,%f,%f\n", B, results[sample_counter][1], results[sample_counter][NUM_L + 2]);
@@ -901,4 +966,70 @@ void cleanup(){
   gsl_vector_free(neighbors[1]);
   gsl_vector_free(neighbors[2]);
   gsl_vector_free(neighbors[3]);
+}
+
+void test_lattice_TC(){
+  int i = 0;
+  int j = 0;
+  for(j=0; j < 5; j++){
+    lattice[0][0][j].x = 0.0;
+    lattice[0][0][j].y = 0.0;
+    lattice[0][0][j].z = 1.0;
+
+    lattice[0][4][j].x = 0.0;
+    lattice[0][4][j].y = 0.0;
+    lattice[0][4][j].z = 1.0;
+
+  }
+
+  for(i=1; i < 4; i++){
+    lattice[0][i][0].x = 0.0;
+    lattice[0][i][0].y = 0.0;
+    lattice[0][i][0].z = 1.0;
+
+    lattice[0][i][4].x = 0.0;
+    lattice[0][i][4].y = 0.0;
+    lattice[0][i][4].z = 1.0;
+
+  }
+
+  lattice[0][1][2].x = -1.0;
+  lattice[0][1][2].y = 0.0;
+  lattice[0][1][2].z = 0.0;
+
+  lattice[0][3][2].x = 1.0;
+  lattice[0][3][2].y = 0.0;
+  lattice[0][3][2].z = 0.0;
+
+  lattice[0][2][1].x = 0.0;
+  lattice[0][2][1].y = -1.0;
+  lattice[0][2][1].z = 0.0;
+
+  lattice[0][2][3].x = 0.0;
+  lattice[0][2][3].y = 1.0;
+  lattice[0][2][3].z = 0.0;
+
+  lattice[0][2][2].x = 0.0;
+  lattice[0][2][2].y = 0.0;
+  lattice[0][2][2].z = -1.0;
+
+  lattice[0][1][1].x = -1.0/sqrt(2.0);
+  lattice[0][1][1].y = -1.0/sqrt(2.0);
+  lattice[0][1][1].z = 0.0;
+
+  lattice[0][3][1].x = 1.0/sqrt(2.0);
+  lattice[0][3][1].y = -1.0/sqrt(2.0);
+  lattice[0][3][1].z = 0.0;
+
+  lattice[0][3][3].x = 1.0/sqrt(2.0);
+  lattice[0][3][3].y = 1.0/sqrt(2.0);
+  lattice[0][3][3].z = 0.0;
+
+  lattice[0][1][3].x = -1.0/sqrt(2.0);
+  lattice[0][1][3].y = 1.0/sqrt(2.0);
+  lattice[0][1][3].z = 0.0;
+
+  printf("Topological charge is %f \n", calc_TC(0));
+
+
 }

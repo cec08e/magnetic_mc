@@ -85,6 +85,7 @@ double energy, magnetization;
 void parse_config_file();
 void echo_params();
 void build_lattice();
+void insert_impurity(double, int, int, double, int, int);
 void gen_random_spin(spin_t*);
 void simulate(int, double );
 int sweep(double );
@@ -100,5 +101,6 @@ int C_v_T(double** );
 int X_v_T(double** );
 void cross_product(const gsl_vector *u, const gsl_vector *v, gsl_vector *product);
 void cleanup();
+void test_lattice_TC();
 
 #endif
