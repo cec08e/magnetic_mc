@@ -839,14 +839,14 @@ int X_v_T(double** results){
 /* EXPERIMENTS */
 int M_v_B(double** results){
     int cor_count = 0;
-    int num_samples = 1000;
+    int num_samples = 100000;
     int n = 0;
     int sample_counter = 0;
     int i;
     double init_B = B;
     //printf("B = %f, init_B = %f, fabs = %f\n", B, init_B, fabs(init_B));
 
-    printf("MvB data: \n");
+    printf("MvB data (%d samples): \n", num_samples);
     cool_lattice(FINAL_T);
     while(B < fabs(init_B)){
         //printf("equilibrating\n");
