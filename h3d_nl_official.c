@@ -29,14 +29,14 @@ int main(){
   int i = 0;
   double ** results = (double **)malloc(10000*sizeof(double *));
   for(i = 0; i < 10000; i++)
-    results[i] = (double *)malloc(4*sizeof(double));
+    results[i] = (double *)malloc(8*sizeof(double));
 
   parse_config_file();
   echo_params(stdout);
   build_lattice();
-  //M_v_B(results);
+  M_v_B(results);
   //X_v_T(results);
-  C_v_T(results);
+  //C_v_T(results);
 
   cleanup();
 }
@@ -44,6 +44,8 @@ int main(){
 void parse_config_file(){
   /* to do: make structure more permissable - whitespace allowance, etc. */
   /* MUST ALLOCATE SPACE TO PARAM LISTS BEFORE ACCEPTING VALUES */
+
+  /* FIX TYPING ISSUE */
 
   if(DEBUG)
     printf("Parsing config file...");
@@ -57,42 +59,18 @@ void parse_config_file(){
 
   fp = fopen(CONFIG_FILE, "r");
   while(fgets(config_line, 80,fp)){
-    if(sscanf(config_line, "%s = %d\n", param, &val) == 2){
-      /* Case includes: SIM_NUM, NUM_L, NUM_R, NUM_C, OVER_FLAG, ANNEAL_TIME,
-      EQ_TIME, COR_TIME, J_INTRA_P, J_INTER_P, D_INTRA_P, D_INTER_P, K_P*/
-      if(!strcmp(param, "SIM_NUM")) SIM_NUM = val;
-      else if(!strcmp(param, "NUM_L")){
-         NUM_L = val;
-         /* Number of layers now known. Allocate space for constant
-         interaction strength parameters */
-         J_INTRA_CONST = malloc(NUM_L*sizeof(float));
-         J_INTER_CONST = malloc(NUM_L*sizeof(float));
-         D_INTRA_CONST = malloc(NUM_L*sizeof(float));
-         D_INTER_CONST = malloc(NUM_L*sizeof(float));
-         K_CONST = malloc(NUM_L*sizeof(float));
 
-       }
-      else if(!strcmp(param, "NUM_R")) NUM_R = val;
-      else if(!strcmp(param, "NUM_C")) NUM_C = val;
-      else if(!strcmp(param, "OVER_FLAG")) OVER_FLAG = val;
-      else if(!strcmp(param, "ANNEAL_TIME")) ANNEAL_TIME = val;
-      else if(!strcmp(param, "EQ_TIME")) EQ_TIME = val;
-      else if(!strcmp(param, "COR_TIME")) COR_TIME = val;
-      else if(!strcmp(param, "J_INTRA_P")) J_INTRA_P = val;
-      else if(!strcmp(param, "J_INTER_P")) J_INTER_P = val;
-      else if(!strcmp(param, "D_INTRA_P")) D_INTRA_P = val;
-      else if(!strcmp(param, "D_INTER_P")) J_INTER_P = val;
-      else if(!strcmp(param, "K_P")) K_P = val;
-      else if(!strcmp(param, "DEBUG")) DEBUG = val;
-    }
-    else if(sscanf(config_line, "%s = %f", param, &val_d) == 2){
+    if(sscanf(config_line, "%s = %f", param, &val_d) == 2){
       /* Case includes: B_CONST, J_INTRA_CONST, J_INTER_CONST, D_INTRA_CONST, D_INTER_CONST, K_CONST*/
       if(!strcmp(param, "INIT_T")) INIT_T = val_d;
       else if(!strcmp(param, "FINAL_T")) FINAL_T = val_d;
       else if(!strcmp(param, "DELTA_T")) DELTA_T = val_d;
-      else if(!strcmp(param, "B_CONST")) B_CONST = val_d;
+      else if(!strcmp(param, "B_CONST")){ printf("val_d = %f\n", val_d); B_CONST = val_d;}
       else if(!strcmp(param, "DELTA_B")) DELTA_B = val_d;
       else if(!strcmp(param, "RADIUS")) RADIUS = val_d;
+      else{
+        printf("param = %s\n", param);
+      }
 
     }
     else if(sscanf(config_line, "%s = [%s]\n", param, val_list) == 2){
@@ -128,6 +106,34 @@ void parse_config_file(){
           str_val = strtok (NULL, ",");
         }
       }
+    }
+    else if(sscanf(config_line, "%s = %d\n", param, &val) == 2){
+      /* Case includes: SIM_NUM, NUM_L, NUM_R, NUM_C, OVER_FLAG, ANNEAL_TIME,
+      EQ_TIME, COR_TIME, J_INTRA_P, J_INTER_P, D_INTRA_P, D_INTER_P, K_P*/
+      if(!strcmp(param, "SIM_NUM")) SIM_NUM = val;
+      else if(!strcmp(param, "NUM_L")){
+         NUM_L = val;
+         /* Number of layers now known. Allocate space for constant
+         interaction strength parameters */
+         J_INTRA_CONST = malloc(NUM_L*sizeof(float));
+         J_INTER_CONST = malloc(NUM_L*sizeof(float));
+         D_INTRA_CONST = malloc(NUM_L*sizeof(float));
+         D_INTER_CONST = malloc(NUM_L*sizeof(float));
+         K_CONST = malloc(NUM_L*sizeof(float));
+
+       }
+      else if(!strcmp(param, "NUM_R")) NUM_R = val;
+      else if(!strcmp(param, "NUM_C")) NUM_C = val;
+      else if(!strcmp(param, "OVER_FLAG")) OVER_FLAG = val;
+      else if(!strcmp(param, "ANNEAL_TIME")) ANNEAL_TIME = val;
+      else if(!strcmp(param, "EQ_TIME")) EQ_TIME = val;
+      else if(!strcmp(param, "COR_TIME")) COR_TIME = val;
+      else if(!strcmp(param, "J_INTRA_P")) J_INTRA_P = val;
+      else if(!strcmp(param, "J_INTER_P")) J_INTER_P = val;
+      else if(!strcmp(param, "D_INTRA_P")) D_INTRA_P = val;
+      else if(!strcmp(param, "D_INTER_P")) J_INTER_P = val;
+      else if(!strcmp(param, "K_P")) K_P = val;
+      else if(!strcmp(param, "DEBUG")) DEBUG = val;
     }
     else{
       printf("Invalid line encountered in configuration file: %s\n", config_line);
@@ -628,11 +634,13 @@ double calc_TC(int layer){
   double solid_angle_sum = 0;
   int i, j, k;
   i = layer;
-  for(j =0; NUM_R; j++)
+  for(j =0; j < NUM_R; j++)
     for(k=0; k < NUM_C; k++){
       solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%NUM_C) + NUM_C) % NUM_C], lattice[i][(j+1)%NUM_R][k]);
       solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j)%NUM_R][(k+1)%NUM_C], lattice[i][(((j-1)%NUM_R) + NUM_R) % NUM_R][(k)%NUM_C]);
     }
+  //printf("returning sa\n");
+  //fflush(stdout);
   return solid_angle_sum/(4*M_PI);
 }
 
@@ -767,64 +775,90 @@ int X_v_T(double** results){
 /* EXPERIMENTS */
 int M_v_B(double** results){
     int cor_count = 0;
+    int num_samples = 1000;
     int n = 0;
     int sample_counter = 0;
     int i;
+    double init_B = B;
+    printf("B = %f, init_B = %f, fabs = %f\n", B, init_B, fabs(init_B));
 
-    B = -.3;
+    cool_lattice(FINAL_T);
+    while(B < fabs(init_B)){
+        //printf("equilibrating\n");
+        //fflush(stdout);
 
-    cool_lattice(.15);
-    while(B < .3){
-        if(DEBUG)
-          printf("B: %f\n", B);
-        simulate(EQ_TIME, .15);
+        simulate(EQ_TIME, FINAL_T);
         // Measure magnetization
+        //printf("recording b\n");
+        //fflush(stdout);
+
         results[sample_counter][0] = B;
-        for(i=0; i <= NUM_L; i++)
-          results[sample_counter][i+1] = calc_magnetization(i-1);
-	      //results[sample_counter][NUM_L+2] = calc_TC(0);
+        //printf("recording m\n");
+        //fflush(stdout);
 
-        for(cor_count = 1; cor_count < 10000; cor_count++){
-          simulate(COR_TIME, .15);
-          for(i=0; i <= NUM_L; i++)
-            results[sample_counter][i+1] += calc_magnetization(i-1);
-	        //results[sample_counter][NUM_L+2] += calc_TC(0);
+
+        results[sample_counter][1] = magnetization;
+
+        //for(i=1; i <= NUM_L; i++)
+        //  results[sample_counter][i+1] = calc_magnetization(i-1);
+        //printf("recording tc\n");
+        //fflush(stdout);
+
+
+	      results[sample_counter][NUM_L+2] = calc_TC(0);
+
+        //printf("cors\n");
+        //fflush(stdout);
+
+        for(cor_count = 1; cor_count < num_samples; cor_count++){
+          simulate(COR_TIME, FINAL_T);
+          results[sample_counter][1] += magnetization;
+
+          //for(i=0; i <= NUM_L; i++)
+          //  results[sample_counter][i+1] += calc_magnetization(i-1);
+	        results[sample_counter][NUM_L+2] += calc_TC(0);
         }
-        for(i=0; i <= NUM_L; i++)
-          results[sample_counter][i+1] = results[sample_counter][i+1]/10000;
-	      //results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/10000;
+        //printf("taking avs\n");
+        //fflush(stdout);
 
+        results[sample_counter][1] = results[sample_counter][1]/num_samples;
+        //for(i=0; i <= NUM_L; i++)
+        //  results[sample_counter][i+1] = results[sample_counter][i+1]/num_samples;
+	      results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/num_samples;
 
         if(DEBUG)
-          printf("M: %f\n", results[sample_counter][1]);
+          printf("%f,%f,%f\n", B, results[sample_counter][1], results[sample_counter][NUM_L + 2]);
 
         sample_counter += 1;
 
         B += DELTA_B;
     }
-    while(B > -.3){
-        if(DEBUG)
-          printf("B: %f\n", B);
-        simulate(EQ_TIME, .15);
+    while(B > init_B){
+        simulate(EQ_TIME, FINAL_T);
         // Measure magnetization
         results[sample_counter][0] = B;
-        for(i=0; i <= NUM_L; i++)
-          results[sample_counter][i+1] = calc_magnetization(i-1);
-	      //results[sample_counter][NUM_L+2] = calc_TC(0);
+        results[sample_counter][1] = magnetization;
+        //for(i=0; i <= NUM_L; i++)
+        //  results[sample_counter][i+1] = calc_magnetization(i-1);
+	      results[sample_counter][NUM_L+2] = calc_TC(0);
 
         // Take average over 1000 sweeps
-        for(cor_count = 1; cor_count < 10000; cor_count++){
-          simulate(COR_TIME, .15);
-          for(i=0; i <= NUM_L; i++)
-            results[sample_counter][i+1] += calc_magnetization(i-1);
-	        //results[sample_counter][NUM_L+2] += calc_TC(0);
+        for(cor_count = 1; cor_count < num_samples; cor_count++){
+          simulate(COR_TIME, FINAL_T);
+          results[sample_counter][1] += magnetization;
+          //for(i=0; i <= NUM_L; i++)
+          //  results[sample_counter][i+1] += calc_magnetization(i-1);
+	        results[sample_counter][NUM_L+2] += calc_TC(0);
         }
-        for(i=0; i <= NUM_L; i++)
-          results[sample_counter][i+1] = results[sample_counter][i+1]/10000;
-	      //results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L + 2]/10000;
+
+        results[sample_counter][1] = results[sample_counter][1]/num_samples;
+
+        //for(i=0; i <= NUM_L; i++)
+        //  results[sample_counter][i+1] = results[sample_counter][i+1]/num_samples;
+	      results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L + 2]/num_samples;
 
         if(DEBUG)
-          printf("M: %f\n", results[sample_counter][1]);
+          printf("%f,%f,%f\n", B, results[sample_counter][1], results[sample_counter][NUM_L + 2]);
 
 
         sample_counter += 1;
