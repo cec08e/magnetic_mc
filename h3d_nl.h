@@ -87,7 +87,7 @@ void echo_params();
 void build_lattice();
 void insert_impurity(double, int, int, double, int, int);
 void gen_random_spin(spin_t*);
-void simulate(int, double );
+float simulate(int, double );
 int sweep(double );
 void perturb_spin(spin_t* , spin_t* );
 double calc_delta_E(spin_t*, spin_t*, int, int, int);

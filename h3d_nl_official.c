@@ -35,7 +35,7 @@ int main(){
   parse_config_file();
   echo_params(stdout);
   build_lattice();
-  //insert_impurity(.15, 1, 0, 0, 0, 0);
+  insert_impurity(.16, 1, 0, -.75, 0, 0);
   M_v_B(results);
   //X_v_T(results);
   //C_v_T(results);
@@ -426,7 +426,7 @@ void gen_random_spin(spin_t* spin){
 
 }
 
-void simulate(int num_sweeps, double T){
+float simulate(int num_sweeps, double T){
   int i, num_or, num_accept = 0;
   for(i = 0; i < num_sweeps; i++){
     num_accept += sweep(T);
@@ -434,6 +434,7 @@ void simulate(int num_sweeps, double T){
     //  overrelax();
     //}
   }
+  return (1.0*num_accept)/(num_sweeps*NUM_R*NUM_L*NUM_C);
 }
 /*
 void overrelax(){
@@ -839,7 +840,7 @@ int X_v_T(double** results){
 /* EXPERIMENTS */
 int M_v_B(double** results){
     int cor_count = 0;
-    int num_samples = 200000;
+    int num_samples = 20000;
     int n = 0;
     int sample_counter = 0;
     int i;
@@ -852,7 +853,7 @@ int M_v_B(double** results){
         //printf("equilibrating\n");
         //fflush(stdout);
 
-        simulate(EQ_TIME, FINAL_T);
+        printf("Equilib @ B=%f acceptance ratio: %f \n",B, simulate(EQ_TIME, FINAL_T));
         // Measure magnetization
         //printf("recording b\n");
         //fflush(stdout);
