@@ -839,7 +839,7 @@ int X_v_T(double** results){
 /* EXPERIMENTS */
 int M_v_B(double** results){
     int cor_count = 0;
-    int num_samples = 100000;
+    int num_samples = 200000;
     int n = 0;
     int sample_counter = 0;
     int i;
