@@ -219,6 +219,7 @@ void build_lattice(){
 
   int i, j, k;
   lattice = (spin_t ***)malloc(NUM_L*sizeof(spin_t **));
+  lattice_copy = (spin_t ***)malloc(NUM_L*sizeof(spin_t **));
   J_INTER = (float ***)malloc(NUM_L*sizeof(float **));
   J_INTRA = (float ***)malloc(NUM_L*sizeof(float **));
   D_INTER = (float ***)malloc(NUM_L*sizeof(float **));
@@ -227,6 +228,7 @@ void build_lattice(){
   //B = (float ***)malloc(NUM_L*sizeof(float **));
   for(i = 0; i < NUM_L; i++){
     lattice[i] = (spin_t **)malloc(NUM_R*sizeof(spin_t *));
+    lattice_copy[i] = (spin_t **)malloc(NUM_R*sizeof(spin_t *));
     J_INTER[i] = (float **)malloc(NUM_R*sizeof(float *));
     J_INTRA[i] = (float **)malloc(NUM_R*sizeof(float *));
     D_INTER[i] = (float **)malloc(NUM_R*sizeof(float *));
@@ -235,6 +237,7 @@ void build_lattice(){
     //B[i] = (float **)malloc(NUM_R*sizeof(float *));
 
     for(j = 0; j < NUM_R; j++){
+      lattice[i][j] = (spin_t *)malloc(NUM_C*sizeof(spin_t));
       lattice[i][j] = (spin_t *)malloc(NUM_C*sizeof(spin_t));
       J_INTER[i][j] = (float *)malloc(NUM_C*sizeof(float));
       J_INTRA[i][j] = (float *)malloc(NUM_C*sizeof(float));
@@ -378,6 +381,7 @@ void insert_impurity(double ratio, int size, int size_gauss, double strength, in
     printf("Strength gauss: %d\n", strength_gauss);
     printf("Strength sigma: %f\n", str_sigma);
     printf("Strength exp: %d\n", strength_exp);
+    printf("J_intra of impurity reduced to .25\n");
   }
 
   for(i_count = 0; i_count < num_impurities; i_count++){
@@ -399,8 +403,10 @@ void insert_impurity(double ratio, int size, int size_gauss, double strength, in
     }
 
     for( i = 0; i < size; i++)
-      for( j = 0; j < size; j++)
+      for( j = 0; j < size; j++){
         K[l][i + r][j + c] = strength;
+	J_INTRA[l][i + r][j+c] = .25;       /* THIS NEEDS TO BE DEALT WITH */
+      }
 
   }
 
@@ -426,7 +432,7 @@ void gen_random_spin(spin_t* spin){
 
 }
 
-float simulate(int num_sweeps, double T){
+void simulate(int num_sweeps, double T){
   int i, num_or, num_accept = 0;
   for(i = 0; i < num_sweeps; i++){
     num_accept += sweep(T);
@@ -434,7 +440,6 @@ float simulate(int num_sweeps, double T){
     //  overrelax();
     //}
   }
-  return (1.0*num_accept)/(num_sweeps*NUM_R*NUM_L*NUM_C);
 }
 /*
 void overrelax(){
@@ -843,9 +848,13 @@ int M_v_B(double** results){
     int num_samples = 20000;
     int n = 0;
     int sample_counter = 0;
-    int i;
+    int i, j, k, l;
     double init_B = B;
     //printf("B = %f, init_B = %f, fabs = %f\n", B, init_B, fabs(init_B));
+
+    double high_Q = 0.0; 
+    FILE* fptr; 
+    printf("Highest Q: %f\n", high_Q );
 
     printf("MvB data (%d samples): \n", num_samples);
     cool_lattice(FINAL_T);
@@ -853,7 +862,7 @@ int M_v_B(double** results){
         //printf("equilibrating\n");
         //fflush(stdout);
 
-        printf("Equilib @ B=%f acceptance ratio: %f \n",B, simulate(EQ_TIME, FINAL_T));
+        simulate(EQ_TIME, FINAL_T);
         // Measure magnetization
         //printf("recording b\n");
         //fflush(stdout);
@@ -871,7 +880,7 @@ int M_v_B(double** results){
         //fflush(stdout);
 
 
-	      results[sample_counter][NUM_L+2] = calc_TC(0);
+	results[sample_counter][NUM_L+2] = calc_TC(0);
 
         //printf("cors\n");
         //fflush(stdout);
@@ -890,10 +899,25 @@ int M_v_B(double** results){
         results[sample_counter][1] = results[sample_counter][1]/(num_samples*NUM_L*NUM_R*NUM_C);
         //for(i=0; i <= NUM_L; i++)
         //  results[sample_counter][i+1] = results[sample_counter][i+1]/num_samples;
-	      results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/(num_samples);
+	results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/(num_samples);
+	if(results[sample_counter][NUM_L + 2] > high_Q){
+	  high_Q = results[sample_counter][NUM_L + 2];
+	  for(j = 0; j < NUM_L; j++){
+	    for(k = 0; k < NUM_R; k++){
+	      for(l=0; l < NUM_C; l++){
+		lattice_copy[j][k][l].x = lattice[j][k][l].x;
+		lattice_copy[j][k][l].y = lattice[j][k][l].y;
+		lattice_copy[j][k][l].z = lattice[j][k][l].z;
+	      }
+	    }
+	  }
+	}
 
-        if(DEBUG)
+        if(DEBUG){
           printf("%f,%f,%f\n", B, results[sample_counter][1], results[sample_counter][NUM_L + 2]);
+	  //fflush(stdout);
+	}
+	fflush(stdout);
 
         sample_counter += 1;
 
@@ -930,6 +954,32 @@ int M_v_B(double** results){
         sample_counter += 1;
         B -= DELTA_B;
     }
+
+    /* Write lattice to file */
+    fptr = fopen("lattice_record.txt", "w");
+    fprintf(fptr, "[");
+    for(j = 0; j < NUM_L; j++){
+      /************************************** FIX *****************************************/
+      fprintf(fptr, "[");
+      for(k = 0; k < NUM_R; k++){
+	fprintf(fptr, "[");
+	for(l = 0; l < NUM_C; l++){
+	  fprintf(fptr, "[");
+	  fprintf(fptr, "%f,%f,%f", lattice_copy[j][k][l].x, lattice_copy[j][k][l].y, lattice_copy[j][k][l].z);
+	  fprintf(fptr, "]"); 
+	  if(l < NUM_C - 1)
+	    fprintf(fptr, ",");
+	}
+	fprintf(fptr, "]");
+	if(k < NUM_R - 1)
+	  fprintf(fptr, ",");
+      }
+      fprintf(fptr, "]");
+      if(j < NUM_L - 1)
+	fprintf(fptr, ",");
+
+    }
+    fprintf(fptr, "]");
 
     return sample_counter;
 }

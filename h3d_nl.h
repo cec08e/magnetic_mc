@@ -62,6 +62,7 @@ typedef struct {
 typedef spin_t *** lattice_t;    /* Lattice type */
 
 lattice_t lattice;
+lattice_t lattice_copy;
 
 gsl_rng * rng;
 gsl_vector* spin_vector;
@@ -87,7 +88,7 @@ void echo_params();
 void build_lattice();
 void insert_impurity(double, int, int, double, int, int);
 void gen_random_spin(spin_t*);
-float simulate(int, double );
+void simulate(int, double );
 int sweep(double );
 void perturb_spin(spin_t* , spin_t* );
 double calc_delta_E(spin_t*, spin_t*, int, int, int);
