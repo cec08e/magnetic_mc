@@ -5,6 +5,9 @@
 #define SIM_CONFIG "sim_results/sim_results.txt"   /* Configuration parameter recording file location */
 
 
+/********* Experimental Version ************/
+
+
 /* Likely to be modified */
 int SIM_NUM = 1;       /* Simulation Number */
 short NUM_L = 1;           /* Number of layers */
@@ -44,7 +47,7 @@ short K_P = 0;
    is accessible as J_INTER[1][2][3]
 */
 float *** J_INTER;     /* Interlayer exchange interaction strength */
-float *** J_INTRA;     /* Intralayer exchange interaction strength */
+//float *** J_INTRA;     /* Intralayer exchange interaction strength */
 float *** D_INTER;     /* Interlayer DM interaction strength */
 float *** D_INTRA;     /* Intralayer DM interaction strength */
 float *** K;           /* Anisotropy strength */
